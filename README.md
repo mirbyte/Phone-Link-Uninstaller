@@ -10,8 +10,9 @@ While designed to be thorough, using this script may have unintended consequence
 Use this script at your own risk. The author is not responsible for any damage caused.
 
 ## Usage
-- Download
-- Run start.bat
+1. Download latest version from Releases
+2. Unzip
+3. Run start.bat
 
 <br>
 
