@@ -1,3 +1,9 @@
+[![License](https://img.shields.io/github/license/mirbyte/Phone-Link-Uninstaller?color=0078D7&maxAge=604800)](https://raw.githubusercontent.com/mirbyte/Phone-Link-Uninstaller/master/LICENSE)
+![Size](https://img.shields.io/github/repo-size/mirbyte/Phone-Link-Uninstaller?label=size&color=0078D7&maxAge=86400)
+[![Download Count](https://img.shields.io/github/downloads/mirbyte/Phone-Link-Uninstaller/total?color=0078D7&maxAge=86400)](https://github.com/mirbyte/Phone-Link-Uninstaller/releases)
+[![Latest Release](https://img.shields.io/github/release/mirbyte/Phone-Link-Uninstaller.svg?color=0078D7&maxAge=86400)](https://github.com/mirbyte/Phone-Link-Uninstaller/releases/latest)
+![LastCommit](https://img.shields.io/github/last-commit/mirbyte/Phone-Link-Uninstaller?color=0078D7&label=repo+updated)
+
 # Phone Link Uninstaller
 ***WARNING!*** This script will attempt to forcefully remove the Phone Link (Your Phone/PhoneExperienceHost) application, related components and registry entries from your system. This includes packages for all users and provisioned packages.
 While designed to be thorough, using this script may have unintended consequences or might not completely remove all traces depending on your system configuration and Windows version. It is recommended to back up important data before proceeding.
