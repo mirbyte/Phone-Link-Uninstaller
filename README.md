@@ -1,5 +1,5 @@
 [![License](https://img.shields.io/github/license/mirbyte/Phone-Link-Uninstaller?color=0078D7&maxAge=604800)](https://raw.githubusercontent.com/mirbyte/Phone-Link-Uninstaller/master/LICENSE)
-![Size](https://img.shields.io/github/repo-size/mirbyte/Phone-Link-Uninstaller?label=size&maxAge=86400)
+![Size](https://img.shields.io/github/repo-size/mirbyte/Phone-Link-Uninstaller?label=size&maxAge=86400&color=0078D7)
 [![Download Count](https://img.shields.io/github/downloads/mirbyte/Phone-Link-Uninstaller/total?color=0078D7&maxAge=86400)](https://github.com/mirbyte/Phone-Link-Uninstaller/releases)
 [![Latest Release](https://img.shields.io/github/release/mirbyte/Phone-Link-Uninstaller.svg?color=0078D7&maxAge=86400)](https://github.com/mirbyte/Phone-Link-Uninstaller/releases/latest)
 
