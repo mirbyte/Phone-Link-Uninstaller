@@ -9,7 +9,7 @@ While designed to be thorough, using this script may have unintended consequence
 Use this script at your own risk. The author is not responsible for any damage caused.
 
 ## Usage
-1. Download from **[Releases](https://github.com/mirbyte/Phone-Link-Uninstaller/releases/latest)**
+1. Download from the **[Releases](https://github.com/mirbyte/Phone-Link-Uninstaller/releases/latest)**
 2. Unzip
 3. Run start.bat
 
