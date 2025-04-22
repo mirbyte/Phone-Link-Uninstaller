@@ -15,4 +15,4 @@ Use this script at your own risk. The author is not responsible for any damage c
 
 <br>
 
-Major inspiration for the powershell script taken from [UninstallOneDrive](https://github.com/asheroto/UninstallOneDrive) & [UninstallTeams](https://github.com/asheroto/UninstallTeams) by asheroto.
+Major inspiration for the powershell script taken from [UninstallOneDrive](https://github.com/asheroto/UninstallOneDrive) & [UninstallTeams](https://github.com/asheroto/UninstallTeams) by [asheroto](https://github.com/asheroto).
