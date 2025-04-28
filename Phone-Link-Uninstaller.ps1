@@ -9,8 +9,8 @@ param(
     [switch]$Version
 )
 
-# --- Script Version and Repo Information ---
-$CurrentVersion = '1.0.0'
+# --- Script Version etc ---
+$CurrentVersion = '1.0.1'
 $RepoOwner = 'mirbyte'
 $RepoName = 'Phone-Link-Uninstaller'
 # $PowerShellGalleryName = 'YourScriptNameOnPSGallery'
@@ -22,7 +22,7 @@ if ($Version.IsPresent) {
 }
 
 
-# UPDATE CHECK IS NOT PROPERLY IMPLEMENTED YET!
+# UPDATE CHECK IS NOT PROPERLY IMPLEMENTED YET !!!
 # --- Update Check Functions START ---
 # (Adapted from https://github.com/asheroto/UninstallOneDrive & https://github.com/asheroto/UninstallTeams)
 function Get-GitHubRelease {
@@ -163,7 +163,7 @@ if (-Not $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administ
      if ($TranscriptActive) { try { Stop-Transcript -ErrorAction SilentlyContinue *>$null } catch {} }
      Exit 1 # Exit the script if not admin
 } else {
-    # Write-Host "Running with Administrator privileges..." # Keep output minimal
+    # Write-Host "Running with Administrator privileges..."
     if ($PSBoundParameters.ContainsKey('WhatIf') -and $PSBoundParameters['WhatIf']) {
          Write-Warning "Running in -WhatIf mode. No changes will be made."
     }
@@ -173,11 +173,12 @@ if (-Not $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administ
 # --- Configuration ---
 # Define patterns for AppX packages to remove. Wildcards (*) match any characters.
 $AppPackagePatterns = @(
-    "*Microsoft.YourPhone*",          # Original name pattern
-    "*Microsoft.PhoneExperienceHost*",# Newer name pattern / Host process App
-    "*Microsoft.Windows.PhoneLink*"  # Current official name pattern
-    # "*Microsoft.PPIProjection*",      # Often related, keep if needed, commented out for focus
-    # "*Microsoft.CommsPhone*"          # Related communication component, keep if needed, commented out for focus
+    "*Microsoft.YourPhone*",           # Original name pattern
+    "*Microsoft.PhoneExperienceHost*", # Newer name pattern / Host process App
+    "*Microsoft.Windows.PhoneLink*", # Current official name pattern
+    "*MicrosoftWindows.CrossDevice*" # Corrected pattern for Cross Device package
+    # "*Microsoft.PPIProjection*",   # Often related, keep if needed, commented out for focus
+    # "*Microsoft.CommsPhone*"       # Related communication component, keep if needed, commented out for focus
 )
 
 # Use the same patterns for provisioned packages
@@ -250,10 +251,10 @@ if ($ServicesToStop.Count -gt 0) {
                     }
                 }
             } else {
-                 # Write-Host "Service '$serviceName' is already stopped." -ForegroundColor DarkGray # Keep output minimal
+                 # Write-Host "Service '$serviceName' is already stopped." -ForegroundColor DarkGray
             }
         } else {
-            # Write-Host "Service '$serviceName' not found." -ForegroundColor DarkGray # Keep output minimal
+            # Write-Host "Service '$serviceName' not found." -ForegroundColor DarkGray
         }
     }
 } else {
@@ -265,29 +266,31 @@ if ($ServicesToStop.Count -gt 0) {
 Write-Host "`n--- Phase 1: Uninstalling AppX Packages ---" -ForegroundColor Cyan
 $packagesRemovedCount = 0
 foreach ($pattern in $AppPackagePatterns) {
+    # Write-Host "   Processing pattern: '$pattern'" -ForegroundColor Gray
     try {
-        # Get packages matching the pattern for all users
+        # General handling for all patterns
         $packages = Get-AppxPackage -AllUsers -Name $pattern -ErrorAction SilentlyContinue
         if ($packages) {
             foreach ($package in $packages) {
+                Write-Host "   Found package: $($package.Name) ($($package.PackageFullName)) Version: $($package.Version)" -ForegroundColor White
                 if ($PSCmdlet.ShouldProcess($package.PackageFullName, "Remove AppX Package")) {
                     try {
                         Remove-AppxPackage -Package $package.PackageFullName -AllUsers -ErrorAction Stop
-                        Write-Host "   Removed AppX: $($package.Name)" -ForegroundColor Green
+                        Write-Host "      Successfully removed package: $($package.Name)" -ForegroundColor Green
                         $packagesRemovedCount++
                     } catch {
-                        Write-Error "ERROR removing AppX package '$($package.PackageFullName)': $($_.Exception.Message)"
+                        Write-Warning "      Failed to remove package: $($package.Name) ($($package.PackageFullName)). Error: $($_.Exception.Message)"
                     }
                 }
             }
         } else {
-            # Write-Host "   No AppX packages found matching pattern '$pattern'." -ForegroundColor DarkGray # Keep output minimal
+            Write-Host "   No packages found matching pattern: '$pattern'" -ForegroundColor DarkGray
         }
     } catch {
-         # This catch block might indicate a broader issue with Get-AppxPackage
-         Write-Warning "   Error querying AppX packages for pattern '$pattern': $($_.Exception.Message)"
+        Write-Error "ERROR processing pattern '$pattern': $($_.Exception.Message)"
     }
 }
+
 if ($packagesRemovedCount -eq 0) {
     Write-Host "   No relevant AppX packages found or removed." -ForegroundColor DarkGray
 } else {
@@ -315,7 +318,7 @@ foreach ($pattern in $ProvisionedPackagePatterns) {
                 }
             }
         } else {
-             # Write-Host "   No provisioned packages found matching pattern '$pattern'." -ForegroundColor DarkGray # Keep output minimal
+             # Write-Host "   No provisioned packages found matching pattern '$pattern'." -ForegroundColor DarkGray
         }
     } catch {
          # This catch block might indicate a broader issue with Get-AppxProvisionedPackage
@@ -350,7 +353,7 @@ foreach ($pattern in $ScheduledTaskPatterns) {
                 }
             }
         } else {
-            # Write-Host "   No scheduled tasks found matching pattern '$pattern'." -ForegroundColor DarkGray # Keep output minimal
+            # Write-Host "   No scheduled tasks found matching pattern '$pattern'." -ForegroundColor DarkGray
         }
     } catch {
         # This catch block might indicate a broader issue with Get-ScheduledTask
@@ -696,6 +699,7 @@ if ($regKeysStillExist) {
 
 
 # --- Script End ---
+Write-Host " "
 Write-Host "`n================================================" -ForegroundColor Yellow
 if ($IssuesFound) {
      Write-Host "  Script finished. Verification found remaining items." -ForegroundColor Red
