@@ -5,7 +5,7 @@
 
 # Phone Link Uninstaller
 ***WARNING!*** This script will attempt to forcefully remove the Phone Link (YourPhone/PhoneExperienceHost/CrossDeviceExperience) application, related components and registry entries from your system. This includes packages for all users.
-While designed to be thorough, using this script may have unintended consequences or might not completely remove all traces depending on your system configuration and Windows version. It is recommended to back up important data before proceeding.
+While designed to be thorough, using this script may have unintended consequences or might not completely remove all traces depending on your system configuration and Windows version.
 Use this script at your own risk. The author is not responsible for any damage caused.
 
 ## Usage
