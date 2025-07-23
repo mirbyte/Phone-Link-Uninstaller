@@ -11,7 +11,7 @@ Use this script at your own risk. The author is not responsible for any damage c
 ## Usage
 1. Download the zip from **[Releases](https://github.com/mirbyte/Phone-Link-Uninstaller/releases/latest)**
 2. Unzip
-3. Run start.bat
+3. Run `start.bat`
 
 <br>
 
