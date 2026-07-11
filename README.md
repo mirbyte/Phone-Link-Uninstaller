@@ -8,6 +8,17 @@
 While designed to be thorough, using this script may have unintended consequences or might not completely remove all traces depending on your system configuration and Windows version.
 Use this script at your own risk. The author is not responsible for any damage caused.
 
+## What it removes
+
+- **Phone Link / Your Phone** (`Microsoft.Windows.PhoneLink`, `Microsoft.YourPhone`)
+- **Phone Experience Host** (`Microsoft.PhoneExperienceHost`)
+- **Cross Device Experience Host** (`MicrosoftWindows.CrossDevice`)
+- **Provisioned packages** so the apps are not reinstalled for new users
+- **Scheduled tasks** related to Phone Link
+- **Startup entries** in common Run registry keys
+- **Leftover folders** in `%LOCALAPPDATA%\Packages`
+- **Registry leftovers** including Your Phone settings, the `ms-yourphone` protocol handler, and related notification/background-access keys
+
 ## Usage
 1. Download the zip from **[Releases](https://github.com/mirbyte/Phone-Link-Uninstaller/releases/latest)**
 2. Unzip
