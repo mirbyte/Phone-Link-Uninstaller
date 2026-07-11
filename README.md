@@ -13,6 +13,10 @@ Use this script at your own risk. The author is not responsible for any damage c
 2. Unzip
 3. Run `start.bat`
 
+## Alternative
+
+If you prefer a graphical, general-purpose uninstaller, [Uninstalr](https://uninstalr.com/) is worth considering. It supports Microsoft Store apps and leftover scanning. This script remains focused specifically on removing Phone Link and its related components.
+
 <br>
 
 Major inspiration for the powershell script taken from [UninstallOneDrive](https://github.com/asheroto/UninstallOneDrive) & [UninstallTeams](https://github.com/asheroto/UninstallTeams) by [asheroto](https://github.com/asheroto).
