@@ -169,6 +169,9 @@ if (-Not $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administ
     }
 }
 
+$IsWhatIf = $PSBoundParameters.ContainsKey('WhatIf') -and $PSBoundParameters['WhatIf']
+$ScriptFailed = $false
+
 
 # --- Configuration ---
 # Define patterns for AppX packages to remove. Wildcards (*) match any characters.
@@ -188,7 +191,8 @@ $ProvisionedPackagePatterns = $AppPackagePatterns
 $LeftoverFolderPatterns = @(
     "Microsoft.YourPhone_*",
     "Microsoft.PhoneExperienceHost_*",
-    "Microsoft.Windows.PhoneLink_*"  # FIX: Removed trailing comma
+    "Microsoft.Windows.PhoneLink_*",
+    "MicrosoftWindows.CrossDevice_*"
     # "Microsoft.PPIProjection_*", # Keep if needed
     # "Microsoft.CommsPhone_*"     # Keep if needed
 )
@@ -200,7 +204,8 @@ $ServicesToStop = @()
 $ScheduledTaskPatterns = @(
     "*YourPhone*",
     "*PhoneExperienceHost*",
-    "*Windows.PhoneLink*"
+    "*Windows.PhoneLink*",
+    "*CrossDevice*"
     # "*PPIProjection*" # needed??
 )
 
@@ -209,17 +214,21 @@ $KnownLeftoverRegKeys = @(
    # Specific Keys (will be attempted by Remove-Item directly)
    "HKCU:\Software\Microsoft\YourPhone",
    "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociation\UrlAssociations\ms-yourphone",
-   "HKCR:\ms-yourphone", # Protocol handler
+   "Registry::HKEY_CLASSES_ROOT\ms-yourphone", # Protocol handler
 
    # Patterns (will be attempted by Get-Item/Remove-Item with wildcard)
    "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\PolicyCache\Microsoft.YourPhone_*",
    "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\PolicyCache\Microsoft.Windows.PhoneLink_*",
+   "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\PolicyCache\MicrosoftWindows.CrossDevice_*",
    "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\Microsoft.YourPhone_*",
    "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\Microsoft.Windows.PhoneLink_*",
+   "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\MicrosoftWindows.CrossDevice_*",
    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Microsoft.YourPhone_*",
    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Microsoft.Windows.PhoneLink_*",
+   "HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\MicrosoftWindows.CrossDevice_*",
    "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\HostActivityManager\CommitHistory\Microsoft.YourPhone_*",
-   "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\HostActivityManager\CommitHistory\Microsoft.Windows.PhoneLink_*"
+   "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\HostActivityManager\CommitHistory\Microsoft.Windows.PhoneLink_*",
+   "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\HostActivityManager\CommitHistory\MicrosoftWindows.CrossDevice_*"
    # Add more specific keys or patterns if discovered
 )
 
@@ -227,7 +236,8 @@ $KnownLeftoverRegKeys = @(
 $StartupValuePatternsToRemove = @(
     "*YourPhone*",
     "*PhoneExperienceHost*",
-    "*Windows.PhoneLink*"
+    "*Windows.PhoneLink*",
+    "*CrossDevice*"
 )
 
 
@@ -280,6 +290,7 @@ foreach ($pattern in $AppPackagePatterns) {
                         $packagesRemovedCount++
                     } catch {
                         Write-Warning "      Failed to remove package: $($package.Name) ($($package.PackageFullName)). Error: $($_.Exception.Message)"
+                        $ScriptFailed = $true
                     }
                 }
             }
@@ -288,6 +299,7 @@ foreach ($pattern in $AppPackagePatterns) {
         }
     } catch {
         Write-Error "ERROR processing pattern '$pattern': $($_.Exception.Message)"
+        $ScriptFailed = $true
     }
 }
 
@@ -304,7 +316,7 @@ $provisionedRemovedCount = 0
 foreach ($pattern in $ProvisionedPackagePatterns) {
     try {
         # Get provisioned packages matching the pattern
-        $provisionedPackages = Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -like $pattern } -ErrorAction SilentlyContinue
+        $provisionedPackages = @(Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object { $_.PackageName -like $pattern })
         if ($provisionedPackages) {
             foreach ($provPackage in $provisionedPackages) {
                  if ($PSCmdlet.ShouldProcess($provPackage.PackageName, "Remove Provisioned Package")) {
@@ -314,6 +326,7 @@ foreach ($pattern in $ProvisionedPackagePatterns) {
                         $provisionedRemovedCount++
                     } catch {
                         Write-Error "ERROR removing provisioned package '$($provPackage.PackageName)': $($_.Exception.Message)"
+                        $ScriptFailed = $true
                     }
                 }
             }
@@ -321,8 +334,8 @@ foreach ($pattern in $ProvisionedPackagePatterns) {
              # Write-Host "   No provisioned packages found matching pattern '$pattern'." -ForegroundColor DarkGray
         }
     } catch {
-         # This catch block might indicate a broader issue with Get-AppxProvisionedPackage
          Write-Warning "Error querying provisioned packages for pattern '$pattern': $($_.Exception.Message)"
+         $ScriptFailed = $true
     }
 }
 if ($provisionedRemovedCount -eq 0) {
@@ -349,6 +362,7 @@ foreach ($pattern in $ScheduledTaskPatterns) {
                         $tasksRemovedCount++
                     } catch {
                         Write-Error ("Failed to unregister task {0}: {1}" -f $taskIdentifier, $_.Exception.Message)
+                        $ScriptFailed = $true
                     }
                 }
             }
@@ -356,8 +370,8 @@ foreach ($pattern in $ScheduledTaskPatterns) {
             # Write-Host "   No scheduled tasks found matching pattern '$pattern'." -ForegroundColor DarkGray
         }
     } catch {
-        # This catch block might indicate a broader issue with Get-ScheduledTask
         Write-Warning "Error searching for scheduled tasks matching '$pattern': $($_.Exception.Message)"
+        $ScriptFailed = $true
     }
 }
 if ($tasksRemovedCount -eq 0) {
@@ -406,6 +420,7 @@ foreach ($regPath in $StartupRegPaths) {
                                         $startupValuesCleanedCount++
                                     } catch {
                                         Write-Error "ERROR removing startup entry '$valueName' from '$regPath': $($_.Exception.Message)"
+                                        $ScriptFailed = $true
                                     }
                                 }
                                 # Break inner loop once a match is found for this value name
@@ -417,6 +432,7 @@ foreach ($regPath in $StartupRegPaths) {
             }
         } catch {
             Write-Warning "Error accessing or processing startup registry path '$regPath': $($_.Exception.Message)"
+            $ScriptFailed = $true
         }
     } else {
          # Write-Host "   Startup path not found: $regPath" -ForegroundColor DarkGray # Minimal output
@@ -445,12 +461,14 @@ if (Test-Path -Path $PackagesPath -PathType Container) {
                             $foldersCleanedCount++
                         } catch {
                             Write-Error "ERROR removing folder '$($folder.FullName)': $($_.Exception.Message). It might be in use or require a reboot."
+                            $ScriptFailed = $true
                         }
                     }
                 }
             }
         } catch {
              Write-Warning "Error searching for folders matching '$folderPattern' in '$PackagesPath': $($_.Exception.Message)"
+             $ScriptFailed = $true
         }
     }
 } else {
@@ -514,6 +532,7 @@ if ($KnownLeftoverRegKeys.Count -gt 0) {
                             $regKeysCleanedCount++
                         } catch {
                             Write-Error "ERROR removing registry item '$actualPath': $($_.Exception.Message)"
+                            $ScriptFailed = $true
                         }
                     }
                 } else {
@@ -533,22 +552,29 @@ if ($regKeysCleanedCount -gt 0) {
 
 
 # --- Phase 5: Verification ---
-# Verification phase does not use -WhatIf as it only reads data
 Write-Host "`n--- Phase 5: Verification Checks ---" -ForegroundColor Cyan
 $IssuesFound = $false
+$VerificationUnavailable = $false
+
+if ($IsWhatIf) {
+    Write-Host "   Skipped in -WhatIf mode (dry run; no changes were made)." -ForegroundColor Yellow
+} else {
 
 # Verify AppX packages
 $remainingAppX = @()
 foreach ($pattern in $AppPackagePatterns) {
     try {
-        $remainingAppX += Get-AppxPackage -AllUsers -Name $pattern -ErrorAction SilentlyContinue
-    } catch { Write-Warning "Error during AppX verification for pattern '$pattern': $($_.Exception.Message)" }
+        $remainingAppX += @(Get-AppxPackage -AllUsers -Name $pattern -ErrorAction Stop)
+    } catch {
+        Write-Warning "Error during AppX verification for pattern '$pattern': $($_.Exception.Message)"
+        $VerificationUnavailable = $true
+    }
 }
 if ($remainingAppX.Count -gt 0) {
     Write-Warning "   Verification FAILED: Remaining related AppX packages found:"
     $remainingAppX | Select-Object Name, PackageFullName | Format-Table -AutoSize | Out-String | Write-Warning
     $IssuesFound = $true
-} else {
+} elseif (-not $VerificationUnavailable) {
     Write-Host "   OK: No remaining related AppX packages found." -ForegroundColor Green
 }
 
@@ -556,21 +582,24 @@ if ($remainingAppX.Count -gt 0) {
 $remainingProv = @()
 foreach ($pattern in $ProvisionedPackagePatterns) {
      try {
-        $remainingProv += Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -like $pattern } -ErrorAction SilentlyContinue
-     } catch { Write-Warning "Error during Provisioned verification for pattern '$pattern': $($_.Exception.Message)" }
+        $remainingProv += @(Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object { $_.PackageName -like $pattern })
+     } catch {
+        Write-Warning "Error during Provisioned verification for pattern '$pattern': $($_.Exception.Message)"
+        $VerificationUnavailable = $true
+     }
 }
 if ($remainingProv.Count -gt 0) {
     Write-Warning "   Verification FAILED: Remaining related provisioned packages found:"
     $remainingProv | Select-Object PackageName | Format-Table -AutoSize | Out-String | Write-Warning
     $IssuesFound = $true
-} else {
+} elseif (-not $VerificationUnavailable) {
     Write-Host "   OK: No remaining related provisioned packages found." -ForegroundColor Green
 }
 
 # Verify service status (if any were defined)
 if ($ServicesToStop.Count -gt 0) {
     try {
-        $servicesStatusCheck = Get-Service -Name $ServicesToStop -ErrorAction SilentlyContinue
+        $servicesStatusCheck = Get-Service -Name $ServicesToStop -ErrorAction Stop
         if ($servicesStatusCheck) {
              Write-Warning "   Verification WARNING: Monitored services still exist (check status/startup type):"
              $servicesStatusCheck | Select-Object Name, Status, StartType | Format-Table -AutoSize | Out-String | Write-Warning
@@ -578,7 +607,10 @@ if ($ServicesToStop.Count -gt 0) {
         } else {
             Write-Host "   OK: Monitored services not found." -ForegroundColor Green
         }
-    } catch { Write-Warning "Error during Service verification: $($_.Exception.Message)" }
+    } catch {
+        Write-Warning "Error during Service verification: $($_.Exception.Message)"
+        $VerificationUnavailable = $true
+    }
 } else {
     # Write-Host "   INFO: No services configured for status check." -ForegroundColor DarkGray # Minimal output
 }
@@ -587,14 +619,17 @@ if ($ServicesToStop.Count -gt 0) {
 $remainingTasks = @()
 foreach ($pattern in $ScheduledTaskPatterns) {
     try {
-        $remainingTasks += Get-ScheduledTask | Where-Object { $_.TaskName -like $pattern -or $_.TaskPath -like "*$pattern*" } -ErrorAction SilentlyContinue
-    } catch { Write-Warning "Error during Scheduled Task verification for pattern '$pattern': $($_.Exception.Message)" }
+        $remainingTasks += @(Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -like $pattern -or $_.TaskPath -like "*$pattern*" })
+    } catch {
+        Write-Warning "Error during Scheduled Task verification for pattern '$pattern': $($_.Exception.Message)"
+        $VerificationUnavailable = $true
+    }
 }
 if ($remainingTasks.Count -gt 0) {
     Write-Warning "   Verification FAILED: Found remaining related scheduled tasks:"
     $remainingTasks | Select-Object TaskName, TaskPath, State | Format-Table -AutoSize | Out-String | Write-Warning
     $IssuesFound = $true
-} else {
+} elseif (-not $VerificationUnavailable) {
     Write-Host "   OK: No remaining related scheduled tasks found." -ForegroundColor Green
 }
 
@@ -603,7 +638,7 @@ $foldersStillExistCheck = $false
 if (Test-Path -Path $PackagesPath -PathType Container) {
     foreach ($folderPattern in $LeftoverFolderPatterns) {
         try {
-            $foundFoldersCheck = Get-ChildItem -Path $PackagesPath -Directory -Filter $folderPattern -ErrorAction SilentlyContinue
+            $foundFoldersCheck = Get-ChildItem -Path $PackagesPath -Directory -Filter $folderPattern -ErrorAction Stop
             if ($foundFoldersCheck) {
                 foreach ($folder in $foundFoldersCheck) {
                     Write-Warning "   Verification FAILED: Folder matching '$folderPattern' still exists: '$($folder.FullName)'"
@@ -612,98 +647,95 @@ if (Test-Path -Path $PackagesPath -PathType Container) {
             }
         } catch {
              Write-Warning "Error during Folder verification for pattern '$folderPattern': $($_.Exception.Message)"
+             $VerificationUnavailable = $true
         }
     }
 }
 if ($foldersStillExistCheck) {
      $IssuesFound = $true
-} else {
+} elseif (-not $VerificationUnavailable) {
     Write-Host "   OK: No leftover folders found matching patterns in '$PackagesPath'." -ForegroundColor Green
 }
 
 # Verify leftover registry keys/patterns
 $regKeysStillExist = $false
-# FIX 2: Check specific startup values first using corrected logic
 foreach ($regPath in $StartupRegPaths) {
     if (Test-Path -Path $regPath -ErrorAction SilentlyContinue) {
         try {
-            # Get the properties (values) of the registry key
-            $regValues = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
+            $regValues = Get-ItemProperty -Path $regPath -ErrorAction Stop
 
-            # Check if $regValues is not null and has properties
             if ($regValues -and $regValues.PSObject.Properties) {
-                # Iterate through each property (registry value)
                 foreach ($prop in $regValues.PSObject.Properties) {
                     $valueName = $prop.Name
-                    # Ignore the default value
                     if ($valueName -eq '(default)') { continue }
 
-                    # Check if this value name matches any removal pattern
                     foreach ($pattern in $StartupValuePatternsToRemove) {
                         if ($valueName -like $pattern) {
-                            # If it matches, it means it wasn't removed (or shouldn't exist)
                             Write-Warning "   Verification FAILED: Startup registry value '$valueName' still exists in '$regPath'."
                             $regKeysStillExist = $true
-                            # Break inner loop (patterns) once a match is found for this value name
                             break
                         }
                     }
                 }
             }
-        } catch { Write-Warning "Error during Startup Registry verification for path '$regPath': $($_.Exception.Message)"}
+        } catch {
+            Write-Warning "Error during Startup Registry verification for path '$regPath': $($_.Exception.Message)"
+            $VerificationUnavailable = $true
+        }
     }
 }
-# Check general keys/patterns
 if ($KnownLeftoverRegKeys.Count -gt 0) {
     foreach ($regKeyPathOrPattern in $KnownLeftoverRegKeys) {
         try {
-            # Test-Path works for both specific paths and patterns containing wildcards
-            if (Test-Path -Path $regKeyPathOrPattern -ErrorAction SilentlyContinue) {
-                 # If the path/pattern exists, report it. Resolve patterns to list specifics if possible.
+            if (Test-Path -Path $regKeyPathOrPattern -ErrorAction Stop) {
                  $foundItems = try {
                      if ($regKeyPathOrPattern -like '*[*?]*') {
-                         # Use Get-Item for patterns as it's more reliable for registry items than Resolve-Path
-                         Get-Item -Path $regKeyPathOrPattern -ErrorAction SilentlyContinue
+                         Get-Item -Path $regKeyPathOrPattern -ErrorAction Stop
                      } else {
-                         # For specific paths, just return the path itself if it exists
-                         if (Test-Path -Path $regKeyPathOrPattern -ErrorAction SilentlyContinue) { $regKeyPathOrPattern } else { $null }
+                         if (Test-Path -Path $regKeyPathOrPattern -ErrorAction Stop) { $regKeyPathOrPattern } else { $null }
                      }
                  } catch { $null }
 
                  if ($foundItems) {
-                     # Ensure $foundItems is an array
                      $foundItemsArray = @($foundItems)
                      foreach($item in $foundItemsArray){
-                         # Get path string correctly whether it's an object or just the string
                          $itemPath = if ($item -is [string]) { $item } else { $item.PSPath }
                          Write-Warning "   Verification FAILED: Registry key/item matching '$regKeyPathOrPattern' still exists: '$itemPath'"
                          $regKeysStillExist = $true
                      }
                  } else {
-                     # Test-Path was true, but Get-Item/Test-Path found nothing specific (e.g., access denied?)
-                     # Report the original pattern/path as existing since Test-Path initially returned true
                      Write-Warning "   Verification FAILED: Registry key/pattern matching '$regKeyPathOrPattern' still exists (or could not be fully resolved/accessed)."
                      $regKeysStillExist = $true
                  }
             }
         } catch {
              Write-Warning "Error during General Registry verification for key/pattern '$regKeyPathOrPattern': $($_.Exception.Message)"
+             $VerificationUnavailable = $true
         }
     }
 }
 if ($regKeysStillExist) {
     $IssuesFound = $true
-} else {
+} elseif (-not $VerificationUnavailable) {
     Write-Host "   OK: No specified leftover registry keys, patterns, or startup values found." -ForegroundColor Green
 }
+
+if ($VerificationUnavailable) {
+    Write-Warning "   Verification INCOMPLETE: One or more checks could not be completed."
+    $IssuesFound = $true
+}
+
+} # end if (-not WhatIf)
 
 
 # --- Script End ---
 Write-Host " "
 Write-Host "`n================================================" -ForegroundColor Yellow
-if ($IssuesFound) {
-     Write-Host "  Script finished. Verification found remaining items." -ForegroundColor Red
-     Write-Warning "  Review the 'Verification FAILED' messages above."
+if ($IsWhatIf) {
+     Write-Host "  Dry run finished. No changes were made." -ForegroundColor Cyan
+} elseif ($ScriptFailed -or $IssuesFound) {
+     Write-Host "  Script finished. Verification found remaining items or errors occurred." -ForegroundColor Red
+     Write-Warning "  Review the warnings and 'Verification FAILED' messages above."
 } else {
      Write-Host "  Script finished. Verification checks passed." -ForegroundColor Green
      Write-Host "        System restart is recommended."
@@ -723,3 +755,11 @@ if ($TranscriptActive) {
 Write-Host ""
 Write-Host ""
 Read-Host -Prompt "Press Enter to exit..."
+
+if ($IsWhatIf) {
+    exit 0
+} elseif ($ScriptFailed -or $IssuesFound) {
+    exit 1
+} else {
+    exit 0
+}
