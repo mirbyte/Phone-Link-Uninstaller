@@ -10,7 +10,7 @@ param(
 )
 
 # --- Script Version etc ---
-$CurrentVersion = '1.0.1'
+$CurrentVersion = '1.0.2'
 $RepoOwner = 'mirbyte'
 $RepoName = 'Phone-Link-Uninstaller'
 # $PowerShellGalleryName = 'YourScriptNameOnPSGallery'
